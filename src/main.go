@@ -18,19 +18,23 @@ type TestMode struct {
 }
 
 type Result struct {
-	WPM      float64
-	Accuracy float64
-	Duration time.Duration
-	Errors   int
-	Mode     TestMode
+	WPM          float64
+	Accuracy     float64
+	Duration     time.Duration
+	Errors       int
+	Mode         TestMode
+	IsSuspicious bool
+	CheatFlags   []string
 }
 
 type Player struct {
-	Name       string
-	BestWPM    float64
-	TotalTests int
-	Level      int
-	XP         int
+	Name            string
+	BestWPM         float64
+	TotalTests      int
+	Level           int
+	XP              int
+	SuspiciousTests int
+	CleanTests      int
 }
 
 var wordBank = []string{
@@ -71,14 +75,34 @@ func printPlayerInfo(player Player) {
 	xpForNext := (level + 1) * 100
 	xpProgress := player.XP % 100
 
-	fmt.Printf("👤 Player: %s | Level: %d | XP: %d/%d | Best WPM: %.1f | Tests: %d\n",
-		player.Name, level, xpProgress, xpForNext, player.BestWPM, player.TotalTests)
+	// Fraud detection indicator
+	fraudPercent := 0.0
+	if player.TotalTests > 0 {
+		fraudPercent = float64(player.SuspiciousTests) / float64(player.TotalTests) * 100
+	}
+
+	var trustIndicator string
+	if fraudPercent == 0 {
+		trustIndicator = "✅ CLEAN"
+	} else if fraudPercent < 20 {
+		trustIndicator = "⚠️  CAUTION"
+	} else {
+		trustIndicator = "🚨 SUSPICIOUS"
+	}
+
+	fmt.Printf("👤 Player: %s | Level: %d | XP: %d/%d | Best WPM: %.1f | Tests: %d | Trust: %s\n",
+		player.Name, level, xpProgress, xpForNext, player.BestWPM, player.TotalTests, trustIndicator)
 
 	// XP Progress Bar
 	barLength := 20
 	progress := int(float64(xpProgress) / 100.0 * float64(barLength))
 	bar := strings.Repeat("█", progress) + strings.Repeat("░", barLength-progress)
-	fmt.Printf("XP Progress: [%s] %d%%\n\n", bar, xpProgress)
+	fmt.Printf("XP Progress: [%s] %d%%\n", bar, xpProgress)
+
+	if player.SuspiciousTests > 0 {
+		fmt.Printf("🔍 Suspicious Tests: %d/%d (%.1f%%)\n", player.SuspiciousTests, player.TotalTests, fraudPercent)
+	}
+	fmt.Println()
 }
 
 func showMenu() {
@@ -173,6 +197,7 @@ func runTest(mode TestMode) Result {
 	fmt.Println(text)
 	fmt.Println("═══════════════════════════════════════")
 	fmt.Println("🎯 Start typing now! (Press Enter when done)")
+	fmt.Println("🔍 Anti-cheat system is monitoring your performance...")
 	fmt.Print("\n> ")
 
 	startTime := time.Now()
@@ -207,6 +232,81 @@ func runTest(mode TestMode) Result {
 	return calculateResult(text, userInput, duration, mode)
 }
 
+func detectFraud(original, typed string, duration time.Duration, wpm float64) (bool, []string) {
+	var flags []string
+	isSuspicious := false
+
+	// 1. Unrealistic WPM Detection
+	if wpm > 200 {
+		flags = append(flags, "UNREALISTIC_SPEED")
+		isSuspicious = true
+	}
+
+	// 2. Perfect Match Detection (Copy-Paste)
+	if original == typed && duration.Seconds() < 10 {
+		flags = append(flags, "INSTANT_PERFECT_MATCH")
+		isSuspicious = true
+	}
+
+	// 3. Too Fast for Length
+	expectedMinTime := float64(len(typed)) / 10.0 // Assume 10 chars per second max human speed
+	if duration.Seconds() < expectedMinTime {
+		flags = append(flags, "IMPOSSIBLY_FAST")
+		isSuspicious = true
+	}
+
+	// 4. Consistent Speed Pattern (No human variation)
+	words := strings.Fields(typed)
+	if len(words) > 5 {
+		avgTimePerWord := duration.Seconds() / float64(len(words))
+		// Check if typing speed is too consistent (no natural variation)
+		if avgTimePerWord < 0.2 { // Less than 0.2 seconds per word
+			flags = append(flags, "ROBOTIC_CONSISTENCY")
+			isSuspicious = true
+		}
+	}
+
+	// 5. 100% Accuracy with High Speed
+	accuracy := calculateAccuracy(original, typed)
+	if accuracy == 100.0 && wpm > 80 {
+		flags = append(flags, "PERFECT_HIGH_SPEED")
+		isSuspicious = true
+	}
+
+	// 6. Exact Match with Minimal Time
+	if strings.TrimSpace(original) == strings.TrimSpace(typed) && duration.Seconds() < 5 {
+		flags = append(flags, "COPY_PASTE_DETECTED")
+		isSuspicious = true
+	}
+
+	// 7. Burst Speed Detection (Too fast start)
+	if wpm > 150 && duration.Seconds() < 30 {
+		flags = append(flags, "BURST_SPEED_ANOMALY")
+		isSuspicious = true
+	}
+
+	return isSuspicious, flags
+}
+
+func calculateAccuracy(original, typed string) float64 {
+	if len(original) == 0 {
+		return 0
+	}
+
+	correctChars := 0
+	minLen := len(original)
+	if len(typed) < minLen {
+		minLen = len(typed)
+	}
+
+	for i := 0; i < minLen; i++ {
+		if original[i] == typed[i] {
+			correctChars++
+		}
+	}
+
+	return float64(correctChars) / float64(len(original)) * 100
+}
 func calculateResult(original, typed string, duration time.Duration, mode TestMode) Result {
 	typedWords := strings.Fields(typed)
 
@@ -241,19 +341,56 @@ func calculateResult(original, typed string, duration time.Duration, mode TestMo
 
 	accuracy := float64(correctChars) / float64(totalChars) * 100
 
+	// Fraud Detection
+	isSuspicious, cheatFlags := detectFraud(original, typed, duration, wpm)
+
 	return Result{
-		WPM:      wpm,
-		Accuracy: accuracy,
-		Duration: duration,
-		Errors:   errors,
-		Mode:     mode,
+		WPM:          wpm,
+		Accuracy:     accuracy,
+		Duration:     duration,
+		Errors:       errors,
+		Mode:         mode,
+		IsSuspicious: isSuspicious,
+		CheatFlags:   cheatFlags,
 	}
 }
 
 func displayResult(result Result, player *Player) {
 	clearScreen()
 
-	fmt.Println("🎉 TEST COMPLETED! 🎉")
+	// Check for fraud first
+	if result.IsSuspicious {
+		fmt.Println("🚨 SUSPICIOUS ACTIVITY DETECTED! 🚨")
+		fmt.Println("═══════════════════════════════════════")
+		fmt.Println("⚠️  Our anti-cheat system has flagged this test as suspicious!")
+		fmt.Println("🔍 Detected issues:")
+		for _, flag := range result.CheatFlags {
+			switch flag {
+			case "UNREALISTIC_SPEED":
+				fmt.Println("   • Typing speed exceeds human limits (>200 WPM)")
+			case "INSTANT_PERFECT_MATCH":
+				fmt.Println("   • Perfect text match completed too quickly")
+			case "IMPOSSIBLY_FAST":
+				fmt.Println("   • Completed faster than humanly possible")
+			case "ROBOTIC_CONSISTENCY":
+				fmt.Println("   • Typing pattern lacks human variation")
+			case "PERFECT_HIGH_SPEED":
+				fmt.Println("   • 100% accuracy at unrealistic speed")
+			case "COPY_PASTE_DETECTED":
+				fmt.Println("   • Evidence of copy-paste behavior")
+			case "BURST_SPEED_ANOMALY":
+				fmt.Println("   • Suspicious burst typing pattern")
+			}
+		}
+		fmt.Println("\n🏆 This result will NOT count towards your records!")
+		fmt.Println("💡 Tip: Type naturally for accurate results")
+		player.SuspiciousTests++
+	} else {
+		fmt.Println("🎉 TEST COMPLETED! 🎉")
+		fmt.Println("✅ Result verified as legitimate")
+		player.CleanTests++
+	}
+
 	fmt.Println("═══════════════════════════════════════")
 
 	// Performance indicators
@@ -288,43 +425,50 @@ func displayResult(result Result, player *Player) {
 	fmt.Printf("⏱️  Duration: %.1fs\n", result.Duration.Seconds())
 	fmt.Printf("❌ Errors: %d\n", result.Errors)
 
-	// XP and leveling
-	baseXP := int(result.WPM)
-	bonusXP := 0
-	if result.Accuracy >= 95 {
-		bonusXP += 20
-	} else if result.Accuracy >= 85 {
-		bonusXP += 10
+	// Only award XP and records for clean tests
+	if !result.IsSuspicious {
+		// XP and leveling
+		baseXP := int(result.WPM)
+		bonusXP := 0
+		if result.Accuracy >= 95 {
+			bonusXP += 20
+		} else if result.Accuracy >= 85 {
+			bonusXP += 10
+		}
+
+		totalXP := baseXP + bonusXP
+		player.XP += totalXP
+
+		// Check for new personal best
+		isNewBest := false
+		if result.WPM > player.BestWPM {
+			player.BestWPM = result.WPM
+			isNewBest = true
+			fmt.Println("🏆 NEW PERSONAL BEST! 🏆")
+		}
+
+		// Level up check
+		newLevel := player.XP / 100
+		if newLevel > player.Level {
+			fmt.Printf("🌟 LEVEL UP! You're now level %d! 🌟\n", newLevel)
+			player.Level = newLevel
+		}
+
+		fmt.Printf("\n💎 XP Earned: +%d", totalXP)
+		if bonusXP > 0 {
+			fmt.Printf(" (Base: %d + Accuracy Bonus: %d)", baseXP, bonusXP)
+		}
+		fmt.Println()
+
+		if isNewBest {
+			fmt.Println("🎊 Achievement Unlocked: New Speed Record!")
+		}
+	} else {
+		fmt.Println("\n❌ No XP or records awarded for suspicious tests")
+		fmt.Println("🎮 Play fairly to earn rewards and track progress!")
 	}
 
-	totalXP := baseXP + bonusXP
-	player.XP += totalXP
 	player.TotalTests++
-
-	// Check for new personal best
-	isNewBest := false
-	if result.WPM > player.BestWPM {
-		player.BestWPM = result.WPM
-		isNewBest = true
-		fmt.Println("🏆 NEW PERSONAL BEST! 🏆")
-	}
-
-	// Level up check
-	newLevel := player.XP / 100
-	if newLevel > player.Level {
-		fmt.Printf("🌟 LEVEL UP! You're now level %d! 🌟\n", newLevel)
-		player.Level = newLevel
-	}
-
-	fmt.Printf("\n💎 XP Earned: +%d", totalXP)
-	if bonusXP > 0 {
-		fmt.Printf(" (Base: %d + Accuracy Bonus: %d)", baseXP, bonusXP)
-	}
-	fmt.Println()
-
-	if isNewBest {
-		fmt.Println("🎊 Achievement Unlocked: New Speed Record!")
-	}
 
 	fmt.Println("\nPress Enter to continue...")
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
@@ -339,6 +483,22 @@ func showStats(player Player) {
 	fmt.Printf("🎮 Total Tests: %d\n", player.TotalTests)
 	fmt.Printf("⭐ Current Level: %d\n", player.Level)
 	fmt.Printf("💎 Total XP: %d\n", player.XP)
+
+	// Fraud statistics
+	if player.TotalTests > 0 {
+		fmt.Printf("✅ Clean Tests: %d\n", player.CleanTests)
+		fmt.Printf("🚨 Suspicious Tests: %d\n", player.SuspiciousTests)
+		fraudPercent := float64(player.SuspiciousTests) / float64(player.TotalTests) * 100
+		fmt.Printf("🔍 Trust Score: %.1f%% suspicious\n", fraudPercent)
+
+		if fraudPercent == 0 {
+			fmt.Println("🏅 Status: TRUSTED PLAYER")
+		} else if fraudPercent < 20 {
+			fmt.Println("⚠️  Status: CAUTION - Some suspicious activity")
+		} else {
+			fmt.Println("🚨 Status: HIGH SUSPICION - Multiple fraud flags")
+		}
+	}
 
 	// Level progress
 	xpProgress := player.XP % 100
@@ -364,6 +524,9 @@ func showStats(player Player) {
 	if player.Level >= 5 {
 		fmt.Println("✅ Rising Star (Level 5+)")
 	}
+	if player.SuspiciousTests == 0 && player.TotalTests >= 5 {
+		fmt.Println("✅ Clean Player (No suspicious activity)")
+	}
 
 	fmt.Println("\nPress Enter to return to menu...")
 	bufio.NewReader(os.Stdin).ReadBytes('\n')
@@ -374,11 +537,13 @@ func main() {
 
 	// Initialize player
 	player := Player{
-		Name:       "Typing Master",
-		BestWPM:    0,
-		TotalTests: 0,
-		Level:      1,
-		XP:         0,
+		Name:            "Typing Master",
+		BestWPM:         0,
+		TotalTests:      0,
+		Level:           1,
+		XP:              0,
+		SuspiciousTests: 0,
+		CleanTests:      0,
 	}
 
 	// Get player name
