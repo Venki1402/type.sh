@@ -1,0 +1,76 @@
+# GoReleaser config for type.sh
+# Docs: https://goreleaser.com
+#
+# Local checks (no publishing):
+#   goreleaser check
+#   goreleaser build --snapshot --clean --single-target
+#   goreleaser release --snapshot --clean
+#
+# Real release is driven by .github/workflows/release.yml on a pushed tag.
+version: 2
+
+project_name: typesh
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: typesh
+    main: .
+    binary: typesh
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: typesh
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+# Homebrew personal tap: publishes Formula/typesh.rb to Venki1402/homebrew-tap,
+# enabling `brew install Venki1402/tap/typesh`.
+brews:
+  - name: typesh
+    repository:
+      owner: Venki1402
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/Venki1402/type.sh
+    description: A terminal typing-speed trainer with live WPM and anti-cheat.
+    license: MIT
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    install: |
+      bin.install "typesh"
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/typesh --version")
+
+release:
+  github:
+    owner: Venki1402
+    name: type.sh

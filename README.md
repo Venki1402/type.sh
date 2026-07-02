@@ -11,19 +11,36 @@ A terminal typing-speed trainer, built with [Bubble Tea](https://github.com/char
 - **Keystroke-timing anti-cheat** — instead of only checking headline WPM, it inspects the *rhythm* of your typing (inter-key intervals, jitter, paste bursts) to flag automation and pasting.
 - **Themes** — `default`, `warm`, `mono`, switchable in Settings.
 
-## How to play
+## Install
+
+**Homebrew** (macOS / Linux):
+
+```
+brew install Venki1402/tap/typesh
+```
+
+**Install script** (macOS / Linux, no Homebrew needed):
+
+```
+curl -fsSL https://raw.githubusercontent.com/Venki1402/type.sh/main/install.sh | sh
+```
+
+Then just run:
+
+```
+typesh
+```
+
+Neither method requires Go — they install a prebuilt binary.
+
+### Build from source
+
+If you'd rather build it yourself (requires Go 1.24+):
 
 ```
 git clone https://github.com/Venki1402/type.sh
 cd type.sh
-go run .
-```
-
-Or build a binary:
-
-```
-go build -o typesh .
-./typesh
+go run .          # or: go build -o typesh . && ./typesh
 ```
 
 ### Controls
