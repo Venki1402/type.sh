@@ -1,23 +1,60 @@
 # type.sh
 
-## How to play?
+A terminal typing-speed trainer, built with [Bubble Tea](https://github.com/charmbracelet/bubbletea). Live per-character highlighting, real-time WPM, persistent progress, and keystroke-level anti-cheat.
 
-step 1 `git clone https://github.com/Venki1402/type.sh` </br>
-step 2 `cd type.sh` </br>
-step 3 `go run src/main.go`
+## Features
 
+- **Live typing** — every keystroke is captured and colored (correct / incorrect / pending) in real time, with a moving cursor and live WPM.
+- **Time & word modes** — 15/30/45/60s or 10/25/50/100 words.
+- **Global config** — your name, theme, and preferences are stored once (in your OS config dir) and reused on every run. No more re-entering setup.
+- **Progress tracking** — XP, levels, best WPM/accuracy, and a recent-test history that survives restarts.
+- **Keystroke-timing anti-cheat** — instead of only checking headline WPM, it inspects the *rhythm* of your typing (inter-key intervals, jitter, paste bursts) to flag automation and pasting.
+- **Themes** — `default`, `warm`, `mono`, switchable in Settings.
 
-## Screenshots
+## How to play
 
-<img width="555" alt="Screenshot 2025-06-06 at 9 28 22 PM" src="https://github.com/user-attachments/assets/94bc1465-264f-4e2d-9dae-c96d78eaf5d7" /> </br>
-<img width="546" alt="Screenshot 2025-06-06 at 9 28 56 PM" src="https://github.com/user-attachments/assets/312cfb81-345c-47ab-8b20-068451e1ffe2" /> </br>
-<img width="460" alt="Screenshot 2025-06-06 at 9 29 31 PM" src="https://github.com/user-attachments/assets/61e99f00-8b89-46a6-a2a2-908761ff2ba7" /> </br>
-<img width="567" alt="Screenshot 2025-06-06 at 9 29 45 PM" src="https://github.com/user-attachments/assets/673337a5-3d42-4b49-8e73-a86e1aa27d97" />
+```
+git clone https://github.com/Venki1402/type.sh
+cd type.sh
+go run .
+```
 
-## want to contribute?
-- create an issue and add details bug fix / feature enhancement e.t.c..
-- we can discuss how can we solve the issue
-- post that you can work on it and create a pr, I will review and merge it, good luck!
+Or build a binary:
 
+```
+go build -o typesh .
+./typesh
+```
 
+### Controls
 
+| Screen   | Keys                                   |
+|----------|----------------------------------------|
+| Menu     | `↑ ↓` move · `enter` select · `q` quit |
+| Mode     | `← →` choose · `enter` start · `esc` back |
+| Typing   | just type · `backspace` fix · `esc` cancel |
+| Result   | `r` retry · any key for menu           |
+| Settings | `↑ ↓` move · `← → / enter` change · `esc` save |
+
+## Config location
+
+Settings live in your OS config directory under `type.sh/config.json`
+(e.g. `~/Library/Application Support/type.sh/` on macOS,
+`~/.config/type.sh/` on Linux). The Stats screen shows the exact path.
+
+## Project layout
+
+```
+main.go                 entry point
+internal/config         global persisted config, profile & history
+internal/words          word bank + passage generation
+internal/typing         keystroke capture + WPM/accuracy/consistency
+internal/cheat          keystroke-timing anti-cheat
+internal/tui            Bubble Tea screens + lipgloss theming
+```
+
+## Want to contribute?
+
+- Open an issue describing the bug fix / feature.
+- We'll discuss how to solve it.
+- Then send a PR — I'll review and merge it. Good luck!
