@@ -24,6 +24,7 @@ builds:
     goos:
       - darwin
       - linux
+      - windows
     goarch:
       - amd64
       - arm64
@@ -34,6 +35,10 @@ builds:
 archives:
   - id: typesh
     formats: [tar.gz]
+    # Windows users expect .zip
+    format_overrides:
+      - goos: windows
+        formats: [zip]
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     files:
@@ -50,25 +55,30 @@ changelog:
       - "^test:"
       - "^chore:"
 
-# Homebrew personal tap: publishes Formula/typesh.rb to Venki1402/homebrew-tap,
+# Homebrew personal tap: publishes Casks/typesh.rb to Venki1402/homebrew-tap,
 # enabling `brew install Venki1402/tap/typesh`.
-brews:
+homebrew_casks:
   - name: typesh
+    binaries: [typesh]
     repository:
       owner: Venki1402
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
+    directory: Casks
     homepage: https://github.com/Venki1402/type.sh
-    description: A terminal typing-speed trainer with live WPM and anti-cheat.
+    description: A cli app for testing typing speed written in go.
     license: MIT
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
-    install: |
-      bin.install "typesh"
-    test: |
-      assert_match version.to_s, shell_output("#{bin}/typesh --version")
+    # Binaries aren't signed/notarized; strip the quarantine flag so macOS
+    # Gatekeeper doesn't block the freshly-installed binary.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/typesh"]
+          end
 
 release:
   github:

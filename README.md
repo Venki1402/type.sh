@@ -25,13 +25,19 @@ brew install Venki1402/tap/typesh
 curl -fsSL https://raw.githubusercontent.com/Venki1402/type.sh/main/install.sh | sh
 ```
 
+**Windows**:
+
+Download the latest `typesh_*_windows_amd64.zip` (or `_arm64`) from the
+[Releases](https://github.com/Venki1402/type.sh/releases) page, unzip it, and run
+`typesh.exe` from Windows Terminal or PowerShell.
+
 Then just run:
 
 ```
 typesh
 ```
 
-Neither method requires Go — they install a prebuilt binary.
+None of these methods require Go — they install a prebuilt binary.
 
 ### Build from source
 
@@ -57,7 +63,8 @@ go run .          # or: go build -o typesh . && ./typesh
 
 Settings live in your OS config directory under `type.sh/config.json`
 (e.g. `~/Library/Application Support/type.sh/` on macOS,
-`~/.config/type.sh/` on Linux). The Stats screen shows the exact path.
+`~/.config/type.sh/` on Linux, `%AppData%\type.sh\` on Windows).
+The Stats screen shows the exact path.
 
 ## Project layout
 
