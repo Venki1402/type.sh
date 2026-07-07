@@ -2,6 +2,9 @@
 
 A terminal typing-speed trainer, built with [Bubble Tea](https://github.com/charmbracelet/bubbletea). Live per-character highlighting, real-time WPM, persistent progress, and keystroke-level anti-cheat.
 
+<img width="872" height="328" alt="Screenshot 2026-07-04 at 11 45 55 AM" src="https://github.com/user-attachments/assets/d20b1a78-3bfe-491b-863c-b295a38091db" />
+
+
 ## Features
 
 - **Live typing** — every keystroke is captured and colored (correct / incorrect / pending) in real time, with a moving cursor and live WPM.
